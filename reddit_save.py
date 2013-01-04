@@ -1,7 +1,10 @@
 """
 reddit_save.py
 
-Connects to a reddit user account and downloads saved posts into a mongodb database.
+Manages a user's reddit saved links in a mongodb database.
+
+author: Shang-Lin Chen
+created: Nov. 26, 2012
 """
 
 import pymongo
@@ -9,12 +12,9 @@ import requests
 import json
 from pprint import pprint
 
-username = ''
-password = ''
-
 def setup_session():
     """
-    Create and return a Requests session.
+    Creates and returns a Requests session.
     """
     # Create a new session.                  
     client = requests.session()
@@ -22,18 +22,20 @@ def setup_session():
 
 def get_credentials():
     """
-    Obtain Reddit login credentials from the file .reddit.
+    Extracts Reddit login credentials from the file .reddit.
+    Returns a tuple of the format (username, password).
     """
     with open('.reddit', 'r') as f:
         if not f:
             print "Could not open .reddit."
-        lines = f.readlines()
-        username = lines[0]
-        password = lines[1]
+        (username, password) = f.readline().split(':')
+        username.rstrip('\r\n')
+        password.rstrip('\r\n')
+        return (username, password)
         
-def login(client, username, passwordd):
+def login(client, username, password):
     """
-    Login to a Reddit account and set the modhash.
+    Logs in to a Reddit account and sets the modhash.
     """
     # Create dictionary of login info.
     user_pass_dict = {'user': username,
@@ -50,7 +52,8 @@ def login(client, username, passwordd):
 
 def get_saved(client, username):
     """
-    Return a dictionary of json documents containing a user's saved links.
+    Returns a dictionary of json documents containing a user's saved links.
+    The reddit API can only return a maximum of 100 links.
     args: client -- a requests session
           username
             
@@ -59,14 +62,19 @@ def get_saved(client, username):
     print url
     resp = client.get(url)
     json_docs = json.loads(resp.text)
+    pprint(json_docs)
     return json_docs['data']['children']
 
+def add_to_db():
+    pass
     
 if __name__ == '__main__':
     client = setup_session()
     
     #pprint(resp.text)
-    get_credentials()
+    (username, password) = get_credentials()
+    print username
+    print password
     login(client, username, password)
     
     # Get list of links.
@@ -78,3 +86,7 @@ if __name__ == '__main__':
         pprint(doc)
 
     print '{NUM} documents found'.format(NUM=n)    
+    
+    connection = pymongo.Connection("mongodb://localhost", safe=True)
+    db = connection.reddit
+    collection = db[username]
